@@ -1,0 +1,312 @@
+version: '3.8'
+
+services:
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.3.2
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - kafka-network
+
+  kafka:
+    image: confluentinc/cp-kafka:7.3.2
+    container_name: kafka
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_CREATE_TOPICS: "velib-station-status:1:1,velib-station-information:1:1"
+      KAFKA_JMX_PORT: 9999
+      KAFKA_JMX_HOSTNAME: kafka
+      KAFKA_JMX_OPTS: "-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -javaagent:/usr/app/jmx_prometheus_javaagent.jar=5556:/usr/app/jmx_prometheus.yml"
+    volumes:
+      - ./jmx/jmx_prometheus_javaagent.jar:/usr/app/jmx_prometheus_javaagent.jar
+      - ./jmx/jmx_prometheus.yml:/usr/app/jmx_prometheus.yml
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+      start_period: 40s
+    networks:
+      - kafka-network
+
+  station-information-producer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: station-information-producer
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
+    networks:
+      - kafka-network
+
+  station-status-producer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: station-status-producer
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
+    networks:
+      - kafka-network
+
+  spark-processing:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: spark-processing
+    ports:
+      - "4041:4041"
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
+      SPARK_LOCAL_IP: "0.0.0.0"
+      SPARK_DRIVER_HOST: "0.0.0.0"
+      SPARK_CONF_DIR: "/opt/bitnami/spark/conf"
+    volumes:
+      - ./spark-conf/metrics.properties:/opt/bitnami/spark/conf/metrics.properties
+    networks:
+      - kafka-network
+
+  spark-prediction:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: spark-prediction
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      spark-processing:
+        condition: service_started
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
+      SPARK_LOCAL_IP: "0.0.0.0"
+      SPARK_DRIVER_HOST: "0.0.0.0"
+    networks:
+      - kafka-network
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+    depends_on:
+      - kafka
+      - zookeeper
+    networks:
+      - kafka-network
+
+  mongodb:
+    image: mongo:6.0
+    container_name: mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - kafka-network
+
+  mongo-express:
+    image: mongo-express
+    container_name: mongo-express
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_SERVER: mongodb
+      ME_CONFIG_MONGODB_PORT: 27017
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - kafka-network
+
+  airflow-db:
+    image: postgres:13
+    container_name: airflow-db
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - postgres-airflow-data:/var/lib/postgresql/data
+    networks:
+      - kafka-network
+
+  airflow-init:
+    build:
+      context: .
+      dockerfile: Dockerfile.airflow
+    container_name: airflow-init
+    depends_on:
+      - airflow-db
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-db/airflow
+      AIRFLOW__CORE__FERNET_KEY: ''
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
+      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+      AIRFLOW__WEBSERVER__SECRET_KEY: "my_super_secret_key_2025"
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./Scripts/data-transformation:/opt/airflow/scripts
+      - ./Scripts:/app/Scripts
+    entrypoint: ["/bin/bash", "-c", "airflow db upgrade"]
+    networks:
+      - kafka-network
+
+  airflow-webserver:
+    build:
+      context: .
+      dockerfile: Dockerfile.airflow
+    container_name: airflow-webserver
+    depends_on:
+      - airflow-init
+      - airflow-db
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-db/airflow
+      AIRFLOW__CORE__FERNET_KEY: ''
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
+      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+      AIRFLOW__WEBSERVER__SECRET_KEY: "my_super_secret_key_2025"
+    ports:
+      - "8082:8080"
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./Scripts/data-transformation:/opt/airflow/scripts
+      - ./Scripts:/app/Scripts
+    command: webserver
+    networks:
+      - kafka-network
+
+  airflow-scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile.airflow
+    container_name: airflow-scheduler
+    depends_on:
+      - airflow-init
+      - airflow-db
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-db/airflow
+      AIRFLOW__CORE__FERNET_KEY: ''
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
+      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+      AIRFLOW__WEBSERVER__SECRET_KEY: "my_super_secret_key_2025"
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./Scripts/data-transformation:/opt/airflow/scripts
+      - ./Scripts:/app/Scripts
+    command: scheduler
+    networks:
+      - kafka-network
+
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    depends_on:
+      - kafka
+      - spark-processing
+      - mongodb
+    networks:
+      - kafka-network
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+    networks:
+      - kafka-network
+
+
+
+  node-exporter:
+    image: prom/node-exporter
+    container_name: node-exporter
+    ports:
+      - "9100:9100"
+    networks:
+      - kafka-network
+
+  mongodb-exporter:
+    image: bitnami/mongodb-exporter
+    container_name: mongodb-exporter
+    ports:
+      - "9216:9216"
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017
+    depends_on:
+      - mongodb
+    networks:
+      - kafka-network
+
+  jenkins:
+    image: jenkins/jenkins:lts
+    container_name: jenkins
+    ports:
+      - "8083:8080"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+    networks:
+      - kafka-network
+    
+volumes:
+  mongo-data:
+  postgres-airflow-data:
+  grafana-data:
+  jenkins_home:
+
+networks:
+  kafka-network:
+    driver: bridge

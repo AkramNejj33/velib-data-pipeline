@@ -1,0 +1,10 @@
+startDelaySeconds: 0
+ssl: false
+lowercaseOutputName: true
+rules:
+- pattern: "kafka.server<type=(.+), name=(.+?)><>Value"
+  name: "kafka_$1_$2"
+- pattern: "kafka.network<type=RequestMetrics, name=(.+?), request=(.+?)><>Count"
+  name: "kafka_network_$1_$2_count"
+
+  
