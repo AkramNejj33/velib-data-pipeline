@@ -131,7 +131,7 @@ pytest tests/
 
 ## 👥 Auteurs
 
-- **Akram33** – [akranejjari726m@gmail.com](mailto:akranejjari726m@gmail.com)  
+- **Akram33** – [akranejjari726m@gmail.com](mailto:akramnejjari726@gmail.com)  
 - **Ouiame Makhoukh**  
 - **Mohamed Zioud**
 
