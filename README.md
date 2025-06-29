@@ -1,115 +1,149 @@
-# 🚲 Velib Data Pipeline & ML Platform
+# 🚲 Velib Data Pipeline & Smart ML Platform
 
-![CI/CD](https://img.shields.io/badge/CI%2FCD-Jenkins-blue)
-![Dockerized](https://img.shields.io/badge/Docker-Compose-blue)
-![Airflow](https://img.shields.io/badge/Orchestration-Airflow-green)
-![Spark](https://img.shields.io/badge/BigData-Spark-orange)
-![MongoDB](https://img.shields.io/badge/Database-MongoDB-brightgreen)
-![Prometheus](https://img.shields.io/badge/Monitoring-Prometheus-yellow)
-![Grafana](https://img.shields.io/badge/Dashboard-Grafana-red)
-
----
-
-## 📖 Description
-
-Ce projet propose une plateforme complète de traitement de données et de Machine Learning autour des données Velib' Métropole. Il intègre l’ingestion temps réel, la transformation, le stockage, l’entraînement de modèles prédictifs et la supervision, le tout orchestré avec Docker, Airflow, Spark, MongoDB, Prometheus, Grafana et Jenkins.
+![CI/CD](https://img.shields.io/badge/CI%2FCD-Jenkins-blue?logo=jenkins&logoColor=white)
+![Docker](https://img.shields.io/badge/Dockerized-Microservices-blue?logo=docker)
+![Airflow](https://img.shields.io/badge/Workflow-Airflow-green?logo=apache-airflow)
+![Spark](https://img.shields.io/badge/Engine-Spark-orange?logo=apachespark)
+![Kafka](https://img.shields.io/badge/Streaming-Kafka-black?logo=apachekafka)
+![MongoDB](https://img.shields.io/badge/Database-MongoDB-brightgreen?logo=mongodb)
+![Prometheus](https://img.shields.io/badge/Metrics-Prometheus-orange?logo=prometheus)
+![Grafana](https://img.shields.io/badge/Dashboard-Grafana-yellow?logo=grafana)
 
 ---
 
-## 🏗️ Architecture
+## 🧠 Présentation
+
+> Une plateforme **intelligente**, **scalable** et **temps réel** pour l’analyse, la prédiction et la surveillance des données **Vélib’ Métropole**.
+
+🔹 Ingestion **streaming temps réel** avec Kafka  
+🔹 Traitement **Big Data** avec Spark  
+🔹 Modélisation prédictive avec Spark MLlib  
+🔹 Supervision et alertes modernes avec Grafana et Prometheus  
+🔹 **Infrastructure dockerisée**, automatisée par Airflow & Jenkins  
+🔹 Prête pour la production et l’évolution vers le cloud
+
+---
+
+## 🏗️ Architecture complète
 
 ```
-+-------------------+      +-------------------+      +-------------------+
-|  Data Ingestion   | ---> |   Data Processing | ---> |   ML Prediction   |
-| (Producers Kafka) |      |   (Spark + Mongo) |      |   (Spark ML)      |
-+-------------------+      +-------------------+      +-------------------+
-        |                        |                           |
-        v                        v                           v
-   Kafka, Airflow           MongoDB, Spark             MongoDB, Jenkins
+     +-------------+         +---------------------+         +----------------+         +------------------+
+     |  API Vélib  |  ==>    | Kafka Producers     |  ==>    | Spark Streaming|  ==>    | ML Predictions   |
+     | (Open Data) |         |  (Data Ingestion)   |         | + MongoDB      |         | (Spark MLlib)    |
+     +-------------+         +---------------------+         +----------------+         +------------------+
+                                     |                              |                             |
+                                 Airflow DAGs                   MongoDB Storage             Jenkins Pipelines
+                                     |                              |                             |
+                              Monitoring (Prometheus + Grafana) 🔍
 ```
 
-- **Ingestion** : Récupération des données Velib via API, injection dans Kafka.
-- **Transformation** : Traitement temps réel avec Spark Streaming, stockage dans MongoDB.
-- **ML** : Entraînement et prédiction avec Spark MLlib.
-- **Orchestration** : Airflow pour les pipelines, Jenkins pour le CI/CD.
-- **Monitoring** : Prometheus & Grafana pour la supervision.
+---
+
+## 🧰 Technologies & Services
+
+| Composant      | Rôle |
+|----------------|------|
+| **🔗 API Vélib’** | Source de données temps réel |
+| **💬 Kafka** | Bus d’événements pour ingestion continue |
+| **🔥 Apache Spark** | Traitement distribué, transformation, ML |
+| **🧠 Spark MLlib** | Entraînement & prédiction sur données vélo |
+| **🍃 MongoDB** | Stockage NoSQL pour les données enrichies |
+| **🛰 Airflow** | Orchestration des pipelines (ETL & ML) |
+| **🛠 Jenkins** | Intégration et déploiement continus |
+| **📈 Prometheus** | Monitoring système et applicatif |
+| **📊 Grafana** | Dashboards dynamiques & alertes |
 
 ---
 
-## 🚀 Lancement rapide
+## 🚀 Démarrage rapide
 
-1. **Cloner le projet**
-   ```sh
-   git clone https://github.com/<USERNAME>/<REPO>.git
-   cd <REPO>
-   ```
+### 1. Cloner le dépôt
+```bash
+git clone https://github.com/<USERNAME>/<REPO>.git
+cd <REPO>
+```
 
-2. **Construire et lancer l’infrastructure**
-   ```sh
-   docker-compose up --build
-   ```
+### 2. Démarrer l'infrastructure
+```bash
+docker-compose up --build
+```
 
-3. **Accéder aux services**
-   - **Airflow** : [http://localhost:8082](http://localhost:8082)
-   - **Jenkins** : [http://localhost:8083](http://localhost:8083)
-   - **Kafka UI** : [http://localhost:8080](http://localhost:8080)
-   - **Mongo Express** : [http://localhost:8081](http://localhost:8081)
-   - **Prometheus** : [http://localhost:9090](http://localhost:9090)
-   - **Grafana** : [http://localhost:3000](http://localhost:3000) (admin/admin)
+### 3. Accéder aux services
+
+| Service         | URL                          |
+|-----------------|------------------------------|
+| Airflow         | http://localhost:8082         |
+| Jenkins         | http://localhost:8083         |
+| Kafka UI        | http://localhost:8080         |
+| Mongo Express   | http://localhost:8081         |
+| Prometheus      | http://localhost:9090         |
+| Grafana         | http://localhost:3000         (admin/admin)
 
 ---
 
-## 📂 Structure du projet
+## 🗂 Structure du projet
 
 ```
 .
-├── dags/                # DAGs Airflow pour l'orchestration
+├── dags/                    # Orchestration Airflow
 ├── Scripts/
-│   ├── data-ingestion/  # Scripts producteurs Kafka
+│   ├── data-ingestion/      # Récupération via API Vélib → Kafka
 │   ├── data-transformation/ # Traitement Spark Streaming
-│   └── ML_model/        # Modèle de prédiction Spark ML
-├── tests/               # Tests unitaires (pytest)
-├── docker-compose.yml   # Stack multi-services
-├── Jenkinsfile          # Pipeline CI/CD Jenkins
-├── prometheus.yml       # Config Prometheus
-├── requirements.txt     # Dépendances Python
-└── ...
+│   └── ML_model/            # Modèle ML (Spark MLlib)
+├── tests/                   # Tests unitaires avec Pytest
+├── docker-compose.yml       # Infrastructure multi-conteneurs
+├── Jenkinsfile              # Pipeline CI/CD
+├── prometheus.yml           # Config Prometheus
+└── requirements.txt         # Dépendances Python
 ```
 
 ---
 
-## ⚙️ Principaux composants
+## 🔬 Tests
 
-- **Airflow** : Orchestration des tâches ETL et ML.
-- **Kafka** : Bus de messages pour ingestion temps réel.
-- **Spark** : Traitement et ML distribué.
-- **MongoDB** : Stockage NoSQL des données traitées.
-- **Jenkins** : CI/CD automatisé (tests, build, déploiement).
-- **Prometheus & Grafana** : Monitoring et dashboards.
-
----
-
-## 🧪 Tests
-
-Lance les tests unitaires avec :
-```sh
+Exécute les tests unitaires avec :
+```bash
 pytest tests/
 ```
 
 ---
 
-## 👨‍💻 Auteur
+## 🧩 Fonctionnalités avancées
 
-- Akram33 - [akranejjari726m@gmail.com](mailto:akranejjari726m@gmail.com)
-- mezyoud mohammed
-- ouiam makhoukh
+✅ Prédictions de disponibilité des stations Vélib  
+✅ Détection des périodes de saturation ou de pénurie  
+✅ Alertes en temps réel via Grafana (email / Slack possible)  
+✅ Visualisation dynamique de l’occupation des stations  
+✅ Monitoring complet de chaque microservice  
+✅ Extensible pour d'autres jeux de données urbaines (transports, IoT...)
+
+---
+
+## 📦 Améliorations à venir
+
+- ☁️ Déploiement cloud (AWS / GCP / Azure)
+- 🧠 Ajout de modèles avancés (XGBoost, LSTM)
+- 🌍 Dashboard géographique des stations sur Leaflet/Mapbox
+- 🔒 Sécurité : Authentification sur Jenkins et Grafana
+- 🧾 Logging centralisé avec ELK Stack (ElasticSearch, Logstash, Kibana)
+
+---
+
+## 👥 Auteurs
+
+- **Akram33** – [akranejjari726m@gmail.com](mailto:akranejjari726m@gmail.com)  
+- **Ouiame Makhoukh**  
+- **Mohamed Zioud**
 
 ---
 
 ## 📜 Licence
 
-Ce projet est open-source sous licence MIT.
+Ce projet est distribué sous la licence MIT.
 
 ---
 
-## 🌟 N’hésite pas à contribuer, étoiler ⭐ et proposer des améliorations !
+## 🤝 Contribuer
+
+✨ Vous êtes les bienvenus pour contribuer ! Forkez, améliorez, proposez des pull requests !  
+⭐ N'oubliez pas de laisser une étoile si ce projet vous plaît.
