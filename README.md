@@ -26,19 +26,6 @@
 
 ## 🏗️ Architecture complète
 
-```
-     +-------------+         +---------------------+         +----------------+         +------------------+
-     |  API Vélib  |  ==>    | Kafka Producers     |  ==>    | Spark Streaming|  ==>    | ML Predictions   |
-     | (Open Data) |         |  (Data Ingestion)   |         | + MongoDB      |         | (Spark MLlib)    |
-     +-------------+         +---------------------+         +----------------+         +------------------+
-                                     |                              |                             |
-                                 Airflow DAGs                   MongoDB Storage             Jenkins Pipelines
-                                     |                              |                             |
-                              Monitoring (Prometheus + Grafana) 🔍
-```
-
----
-
 ![Aperçu](architecture.jpg)
 
 
