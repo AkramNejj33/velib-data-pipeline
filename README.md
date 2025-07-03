@@ -39,6 +39,9 @@
 
 ---
 
+![Aperçu](architecture.jpg)
+
+
 ## 🧰 Technologies & Services
 
 | Composant      | Rôle |
